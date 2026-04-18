@@ -21,15 +21,15 @@ module.exports = async (req, res) => {
 
     // 正确的 Dify Workflow API 地址
     // POST /v1/workflows/run (不需要 workflow_id)
-    // 使用 HTTPS 协议（ZeroNews 支持 HTTPS）
-    const DIFY_BASE_URL = process.env.DIFY_API_URL || 'https://difyapp.fn.takin.cc/v1';
+    // 尝试使用 HTTP 协议
+    const DIFY_BASE_URL = process.env.DIFY_API_URL || 'http://difyapp.fn.takin.cc/v1';
     const APP_KEY = process.env.DIFY_APP_KEY || 'app-lB0tgVA1ioxIKcvzPVT6jKDF';
 
-    // 创建 HTTPS agent，忽略证书验证
-    const https = require('https');
-    const agent = new https.Agent({ 
-      rejectUnauthorized: false,
-      keepAlive: true
+    // 创建 HTTP agent
+    const http = require('http');
+    const agent = new http.Agent({ 
+      keepAlive: true,
+      timeout: 30000
     });
 
     const response = await fetch(`${DIFY_BASE_URL}/workflows/run`, {
@@ -45,7 +45,8 @@ module.exports = async (req, res) => {
         response_mode: 'blocking',
         user: 'web-user'
       }),
-      agent: agent
+      agent: agent,
+      timeout: 30000
     });
 
     if (!response.ok) {
