@@ -2,18 +2,18 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/*.js",
+      "src": "api/dify-proxy.js",
       "use": "@vercel/node"
     },
     {
-      "src": "index.html",
+      "src": "**/*.html",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "src": "/api/dify-proxy",
+      "dest": "/api/dify-proxy.js"
     },
     {
       "src": "/(.*)",
