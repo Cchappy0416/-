@@ -19,12 +19,13 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Question is required' });
     }
 
-    // 从环境变量获取配置（安全！）
-    const DIFY_API_URL = process.env.DIFY_API_URL || 'https://difyapi.fn.takin.cc/v1/workflows';
-    const WORKFLOW_ID = process.env.DIFY_WORKFLOW_ID || 'Rl4c4ZHbs5kaIduG';
+    // 正确的 Dify Workflow API 地址
+    // POST /v1/workflows/run (不需要 workflow_id)
+    // 注意：使用 HTTP 而不是 HTTPS（ZeroNews 配置问题）
+    const DIFY_BASE_URL = process.env.DIFY_API_URL || 'http://difyapp.fn.takin.cc/v1';
     const APP_KEY = process.env.DIFY_APP_KEY || 'app-lB0tgVA1ioxIKcvzPVT6jKDF';
 
-    const response = await fetch(`${DIFY_API_URL}/${WORKFLOW_ID}/run`, {
+    const response = await fetch(`${DIFY_BASE_URL}/workflows/run`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -34,32 +35,18 @@ module.exports = async (req, res) => {
         inputs: {
           question: question
         },
-        response_mode: 'streaming',
+        response_mode: 'blocking',
         user: 'web-user'
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Dify API error: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Dify API error ${response.status}: ${errorText}`);
     }
 
-    // 转发流式响应
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      res.write(chunk);
-    }
-
-    res.end();
+    const data = await response.json();
+    res.json(data);
 
   } catch (error) {
     console.error('API Error:', error);
