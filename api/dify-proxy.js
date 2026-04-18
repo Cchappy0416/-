@@ -21,13 +21,14 @@ module.exports = async (req, res) => {
 
     // 正确的 Dify Workflow API 地址
     // POST /v1/workflows/run (不需要 workflow_id)
-    // 尝试使用 HTTP 协议
-    const DIFY_BASE_URL = process.env.DIFY_API_URL || 'http://difyapp.fn.takin.cc/v1';
+    // 使用 ngrok 穿透地址（HTTPS）
+    const DIFY_BASE_URL = process.env.DIFY_API_URL || 'https://exciting-deafness-enlisted.ngrok-free.dev/v1';
     const APP_KEY = process.env.DIFY_APP_KEY || 'app-lB0tgVA1ioxIKcvzPVT6jKDF';
 
-    // 创建 HTTP agent
-    const http = require('http');
-    const agent = new http.Agent({ 
+    // 创建 HTTPS agent，忽略证书验证（ngrok 免费版的证书）
+    const https = require('https');
+    const agent = new https.Agent({ 
+      rejectUnauthorized: false,
       keepAlive: true,
       timeout: 30000
     });
