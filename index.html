@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>医智图谱 · 医药知识图谱智能问答Agent</title>
-    <!-- 引入 Google Fonts 提升字体质感 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
-    <!-- Font Awesome 6 (免费图标库) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * {
@@ -23,7 +21,6 @@
             padding: 24px;
         }
 
-        /* 主容器网格布局：左侧项目介绍 + 右侧对话区 */
         .dashboard {
             max-width: 1400px;
             margin: 0 auto;
@@ -33,7 +30,6 @@
             align-items: start;
         }
 
-        /* ========= 左侧：项目介绍卡片（精美展示） ========= */
         .project-card {
             background: rgba(255,255,255,0.92);
             backdrop-filter: blur(2px);
@@ -182,7 +178,6 @@
             border-color: #5B4BC4;
         }
 
-        /* ========= 右侧：聊天区域（精致玻璃态） ========= */
         .chat-wrapper {
             background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(2px);
@@ -235,7 +230,6 @@
             gap: 20px;
         }
 
-        /* 自定义滚动条 */
         .messages-area::-webkit-scrollbar {
             width: 5px;
         }
@@ -316,7 +310,6 @@
             border-bottom-left-radius: 6px;
         }
 
-        /* 输入框区域 */
         .input-modern {
             background: white;
             border-top: 1px solid #ecf3fa;
@@ -440,7 +433,6 @@
 <body>
 
 <div class="dashboard">
-    <!-- 左侧：项目介绍 + 精美数据 + 技术亮点 -->
     <div class="project-card">
         <div class="hero-gradient">
             <div class="hero-icon">
@@ -502,7 +494,6 @@
         </a>
     </div>
 
-    <!-- 右侧：AI 对话界面（精致、流畅） -->
     <div class="chat-wrapper">
         <div class="chat-header-modern">
             <div class="chat-title">
@@ -518,13 +509,12 @@
         </div>
 
         <div class="messages-area" id="messagesArea">
-            <!-- 欢迎消息 -->
             <div class="message assistant">
                 <div class="avatar-icon"><i class="fas fa-stethoscope"></i></div>
                 <div class="bubble-text">
                     ✨ 你好，我是医智图谱助手！<br>
                     我背后是 4.4万医疗实体 + 30万关系的知识图谱，支持疾病、用药、检查等 18 类问题。<br>
-                    试试问：<strong>“糖尿病有什么症状？”</strong> 或 <strong>“高血压吃什么药？”</strong>
+                    试试问：<strong>"糖尿病有什么症状？"</strong> 或 <strong>"高血压吃什么药？"</strong>
                 </div>
             </div>
         </div>
@@ -549,7 +539,6 @@
     </div>
 </div>
 
-<!-- 轻提示架构弹窗 (Modal) 精美展示 -->
 <div id="archModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); z-index: 1000; align-items: center; justify-content: center;">
     <div style="background: white; max-width: 550px; width: 90%; border-radius: 40px; padding: 30px; box-shadow: 0 30px 50px rgba(0,0,0,0.3); position: relative;">
         <button id="closeModalBtn" style="position: absolute; right: 20px; top: 20px; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
@@ -568,133 +557,217 @@
 </div>
 
 <script>
-    // ---------- 配置部分（请替换为实际信息，但当前已采用您提供的KEY与ID）--------
-    const API_URL = 'https://difyapi.fn.takin.cc/v1/workflows/run';
-    const API_KEY = 'app-lB0tgVA1ioxIKcvzPVT6jKDF';
-
+    // 配置部分 - 支持两种模式
+    // 模式1：通过API代理调用（推荐，安全）
+    // 模式2：直接调用Dify API（开发测试用）
+    
+    const USE_PROXY = true; // 设置为true使用API代理，false直接调用
+    const API_URL = USE_PROXY ? '/api/dify-proxy' : 'https://difyapi.fn.takin.cc/v1/workflows/Rl4c4ZHbs5kaIduG/run';
+    const APP_KEY = 'app-lB0tgVA1ioxIKcvzPVT6jKDF'; // 仅在直接调用时使用
 
     let isLoading = false;
+    let abortController = null;
 
-    // DOM 元素
     const messagesArea = document.getElementById('messagesArea');
     const questionInput = document.getElementById('questionInput');
     const sendBtn = document.getElementById('sendBtn');
 
-    // 添加消息（优化版支持markdown简单换行）
-    function addMessage(role, content, isMarkdown = false) {
+    function addMessage(role, content, isSystem = false) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${role}`;
+        messageDiv.className = `message ${role} ${isSystem ? 'system-message' : ''}`;
+        
         const avatarIcon = document.createElement('div');
         avatarIcon.className = 'avatar-icon';
         if (role === 'user') {
             avatarIcon.innerHTML = '<i class="fas fa-user"></i>';
         } else {
-            avatarIcon.innerHTML = '<i class="fas fa-robot"></i>';
+            avatarIcon.innerHTML = '<i class="fas fa-stethoscope"></i>';
         }
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble-text';
-        // 将内容中的换行转为html
-        bubble.innerHTML = content.replace(/\n/g, '<br>');
+
+        const bubbleText = document.createElement('div');
+        bubbleText.className = 'bubble-text';
+        bubbleText.innerHTML = content.replace(/\n/g, '<br>');
+
         messageDiv.appendChild(avatarIcon);
-        messageDiv.appendChild(bubble);
+        messageDiv.appendChild(bubbleText);
         messagesArea.appendChild(messageDiv);
         messagesArea.scrollTop = messagesArea.scrollHeight;
     }
 
-    // 显示正在输入...
-    let typingElement = null;
     function showTyping() {
-        if (typingElement) removeTyping();
         const typingDiv = document.createElement('div');
         typingDiv.className = 'message assistant';
         typingDiv.id = 'typingIndicator';
-        typingDiv.innerHTML = `
-            <div class="avatar-icon"><i class="fas fa-robot"></i></div>
-            <div class="typing-indicator">
-                <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
-                <span style="margin-left: 6px; font-size:0.8rem;">医智正在思考...</span>
-            </div>
-        `;
+        
+        const avatarIcon = document.createElement('div');
+        avatarIcon.className = 'avatar-icon';
+        avatarIcon.innerHTML = '<i class="fas fa-stethoscope"></i>';
+        
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator';
+        
+        for (let i = 0; i < 3; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'typing-dot';
+            typingIndicator.appendChild(dot);
+        }
+        
+        typingDiv.appendChild(avatarIcon);
+        typingDiv.appendChild(typingIndicator);
         messagesArea.appendChild(typingDiv);
         messagesArea.scrollTop = messagesArea.scrollHeight;
-        typingElement = typingDiv;
     }
 
     function removeTyping() {
-        if (typingElement) {
-            typingElement.remove();
-            typingElement = null;
+        const typingIndicator = document.getElementById('typingIndicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
         }
     }
 
-    // 核心发送逻辑
     async function sendMessage(questionText = null) {
         const question = questionText !== null ? questionText : questionInput.value.trim();
         if (!question || isLoading) return;
 
-        // 展示用户消息
         addMessage('user', question);
         if (questionText === null) questionInput.value = '';
 
         isLoading = true;
+        sendBtn.disabled = true;
+        questionInput.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
         showTyping();
-
+        abortController = new AbortController();
+        
         try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${API_KEY}`
-                },
-                body: JSON.stringify({
-                    inputs: { question: question },
-                    user: 'interviewer_demo'
-                })
-            });
+            let response;
+            
+            if (USE_PROXY) {
+                // 通过API代理调用
+                response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question: question
+                    }),
+                    signal: abortController.signal
+                });
+            } else {
+                // 直接调用Dify API
+                response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${APP_KEY}`
+                    },
+                    body: JSON.stringify({
+                        inputs: { 
+                            question: question 
+                        },
+                        response_mode: 'blocking',
+                        user: 'user_' + Date.now()
+                    }),
+                    signal: abortController.signal
+                });
+            }
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API响应错误 ${response.status}: ${errorText.substring(0, 100)}`);
+                let errorDetail = '未知错误';
+                try {
+                    const errorData = await response.json();
+                    errorDetail = errorData.message || errorData.error || JSON.stringify(errorData);
+                } catch (e) {
+                    const errorText = await response.text();
+                    errorDetail = errorText.substring(0, 200);
+                }
+                throw new Error(`API错误 ${response.status}: ${errorDetail}`);
             }
 
             const data = await response.json();
-            // 兼容不同返回结构
+            
             let answer = '';
-            if (data.data?.outputs?.text) answer = data.data.outputs.text;
-            else if (data.outputs?.text) answer = data.outputs.text;
-            else if (data.answer) answer = data.answer;
-            else if (data.message) answer = data.message;
-            else answer = '抱歉，暂时无法获取回答，请稍后再试。';
+            if (data.data?.outputs?.answer) {
+                answer = data.data.outputs.answer;
+            } else if (data.data?.outputs?.text) {
+                answer = data.data.outputs.text;
+            } else if (data.data?.outputs?.response) {
+                answer = data.data.outputs.response;
+            } else if (data.answer) {
+                answer = data.answer;
+            } else if (data.text) {
+                answer = data.text;
+            } else if (data.message) {
+                answer = data.message;
+            } else if (data.data?.result) {
+                answer = data.data.result;
+            } else {
+                answer = '抱歉，暂时无法获取回答，请稍后再试。';
+            }
 
             removeTyping();
             addMessage('assistant', answer);
         } catch (err) {
             console.error('调用Agent失败:', err);
             removeTyping();
-            addMessage('assistant', '⚠️ 服务连接出现问题，请确认Dify服务与API Key有效性，或稍后重试。');
+            
+            if (err.name === 'AbortError') {
+                addMessage('system', '⚠️ 请求已取消', true);
+            } else if (err.message.includes('401') || err.message.includes('403')) {
+                addMessage('system', '🔑 认证失败：API Key无效或过期', true);
+            } else if (err.message.includes('404')) {
+                addMessage('system', '🔍 工作流未找到：请检查Workflow ID是否正确', true);
+            } else if (err.message.includes('500')) {
+                addMessage('system', '⚙️ 服务器内部错误：请稍后重试', true);
+            } else if (err.message.includes('network') || err.message.includes('NetworkError')) {
+                addMessage('system', '🌐 网络连接失败：请检查网络状态', true);
+            } else {
+                addMessage('system', `❌ 错误: ${err.message.substring(0, 150)}`, true);
+            }
         } finally {
             isLoading = false;
+            sendBtn.disabled = false;
+            questionInput.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 提问';
+            abortController = null;
         }
     }
 
-    // 事件绑定
-    sendBtn.addEventListener('click', () => sendMessage());
-    questionInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !isLoading) sendMessage();
+    function cancelRequest() {
+        if (abortController && isLoading) {
+            abortController.abort();
+            addMessage('system', '⏹️ 请求已取消', true);
+        }
+    }
+
+    sendBtn.addEventListener('click', () => {
+        if (isLoading) {
+            cancelRequest();
+        } else {
+            sendMessage();
+        }
     });
 
-    // 示例问题快速填充
+    questionInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isLoading) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
     document.querySelectorAll('.example-chip').forEach(chip => {
         chip.addEventListener('click', () => {
+            if (isLoading) return;
             const q = chip.getAttribute('data-question');
             if (q) {
                 questionInput.value = q;
-                sendMessage(q);
+                questionInput.focus();
             }
         });
     });
 
-    // 架构弹窗模块
     const modal = document.getElementById('archModal');
     const showBtn = document.getElementById('showArchitectureBtn');
     const closeBtn = document.getElementById('closeModalBtn');
@@ -702,16 +775,36 @@
     if (showBtn) {
         showBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            modal.style.display = 'flex';
+            if (modal) {
+                modal.style.display = 'flex';
+            }
         });
     }
-    if (closeBtn) {
+    
+    if (closeBtn && modal) {
         closeBtn.addEventListener('click', () => {
             modal.style.display = 'none';
         });
+        
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+        
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            }
+        });
     }
-    window.addEventListener('click', (e) => {
-        if (e.target === modal) modal.style.display = 'none';
+
+    window.addEventListener('DOMContentLoaded', () => {
+        addMessage('assistant', '您好！我是医智助手，专门为您解答医药相关问题。请问有什么可以帮您的？');
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (abortController && isLoading) {
+            abortController.abort();
+        }
     });
 </script>
 </body>
