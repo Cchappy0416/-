@@ -568,117 +568,63 @@
 </div>
 
 <script>
-    // ---------- 配置部分（已根据您的Workflow ID优化）--------
-    // 使用正确的工作流运行端点（包含您的Workflow ID）
-    const WORKFLOW_ID = 'Rl4c4ZHbs5kaIduG'; // 您的工作流ID
-    const API_URL = `https://difyapi.fn.takin.cc/v1/workflows/${WORKFLOW_ID}/run`;
-    
-    // 使用App Key认证（更适合工作流调用）
-    const APP_KEY = 'app-lB0tgVA1ioxIKcvzPVT6jKDF'; // 您的App Key
+    // ---------- 配置部分（请替换为实际信息，但当前已采用您提供的KEY与ID）--------
+    const API_URL = 'https://difyapi.fn.takin.cc/v1/workflows/run';
+    const API_KEY = 'app-lB0tgVA1ioxIKcvzPVT6jKDF';
+
 
     let isLoading = false;
-    let abortController = null; // 用于取消请求
 
     // DOM 元素
     const messagesArea = document.getElementById('messagesArea');
     const questionInput = document.getElementById('questionInput');
     const sendBtn = document.getElementById('sendBtn');
-    const loadingIndicator = document.getElementById('loadingIndicator') || null;
 
     // 添加消息（优化版支持markdown简单换行）
-    function addMessage(role, content, isSystem = false) {
+    function addMessage(role, content, isMarkdown = false) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${role} ${isSystem ? 'system-message' : ''}`;
-        
+        messageDiv.className = `message ${role}`;
         const avatarIcon = document.createElement('div');
         avatarIcon.className = 'avatar-icon';
         if (role === 'user') {
             avatarIcon.innerHTML = '<i class="fas fa-user"></i>';
-        } else if (isSystem) {
-            avatarIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
         } else {
             avatarIcon.innerHTML = '<i class="fas fa-robot"></i>';
         }
-        
         const bubble = document.createElement('div');
         bubble.className = 'bubble-text';
-        // 将内容中的换行转为html，并处理可能的HTML转义
-        bubble.innerHTML = content
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\n/g, '<br>');
-            
+        // 将内容中的换行转为html
+        bubble.innerHTML = content.replace(/\n/g, '<br>');
         messageDiv.appendChild(avatarIcon);
         messageDiv.appendChild(bubble);
         messagesArea.appendChild(messageDiv);
         messagesArea.scrollTop = messagesArea.scrollHeight;
-        
-        return messageDiv;
     }
 
     // 显示正在输入...
     let typingElement = null;
     function showTyping() {
         if (typingElement) removeTyping();
-        
         const typingDiv = document.createElement('div');
-        typingDiv.className = 'message assistant typing-message';
+        typingDiv.className = 'message assistant';
         typingDiv.id = 'typingIndicator';
         typingDiv.innerHTML = `
             <div class="avatar-icon"><i class="fas fa-robot"></i></div>
             <div class="typing-indicator">
                 <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
-                <span class="typing-text">医智正在思考...</span>
+                <span style="margin-left: 6px; font-size:0.8rem;">医智正在思考...</span>
             </div>
         `;
         messagesArea.appendChild(typingDiv);
         messagesArea.scrollTop = messagesArea.scrollHeight;
         typingElement = typingDiv;
-        
-        // 添加动画效果
-        const dots = typingDiv.querySelectorAll('.typing-dot');
-        let dotIndex = 0;
-        const animateDots = () => {
-            dots.forEach((dot, i) => {
-                dot.style.opacity = i === dotIndex ? '1' : '0.3';
-            });
-            dotIndex = (dotIndex + 1) % dots.length;
-        };
-        
-        const animationInterval = setInterval(animateDots, 300);
-        typingDiv.animationInterval = animationInterval;
     }
 
     function removeTyping() {
         if (typingElement) {
-            if (typingElement.animationInterval) {
-                clearInterval(typingElement.animationInterval);
-            }
             typingElement.remove();
             typingElement = null;
         }
-    }
-
-    // 显示加载状态
-    function showLoading() {
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'block';
-        }
-        sendBtn.disabled = true;
-        questionInput.disabled = true;
-        
-        // 添加加载动画到按钮
-        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    }
-
-    function hideLoading() {
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'none';
-        }
-        sendBtn.disabled = false;
-        questionInput.disabled = false;
-        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
     }
 
     // 核心发送逻辑
@@ -691,126 +637,59 @@
         if (questionText === null) questionInput.value = '';
 
         isLoading = true;
-        showLoading();
         showTyping();
 
-        // 创建AbortController用于取消请求
-        abortController = new AbortController();
-        
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${APP_KEY}` // 使用Bearer Token认证
+                    'Authorization': `Bearer ${API_KEY}`
                 },
                 body: JSON.stringify({
-                    inputs: { 
-                        question: question 
-                    },
-                    response_mode: 'blocking', // 阻塞模式，等待完整响应
-                    user: 'user_' + Date.now() // 生成唯一用户标识
-                }),
-                signal: abortController.signal
+                    inputs: { question: question },
+                    user: 'interviewer_demo'
+                })
             });
 
             if (!response.ok) {
-                let errorDetail = '未知错误';
-                try {
-                    const errorData = await response.json();
-                    errorDetail = errorData.message || errorData.error || JSON.stringify(errorData);
-                } catch (e) {
-                    const errorText = await response.text();
-                    errorDetail = errorText.substring(0, 200);
-                }
-                
-                throw new Error(`API错误 ${response.status}: ${errorDetail}`);
+                const errorText = await response.text();
+                throw new Error(`API响应错误 ${response.status}: ${errorText.substring(0, 100)}`);
             }
 
             const data = await response.json();
-            console.log('API响应:', data);
-            
-            // 从响应中提取回答，兼容多种格式
+            // 兼容不同返回结构
             let answer = '';
-            if (data.data?.outputs?.answer) {
-                answer = data.data.outputs.answer;
-            } else if (data.data?.outputs?.text) {
-                answer = data.data.outputs.text;
-            } else if (data.data?.outputs?.response) {
-                answer = data.data.outputs.response;
-            } else if (data.answer) {
-                answer = data.answer;
-            } else if (data.text) {
-                answer = data.text;
-            } else if (data.message) {
-                answer = data.message;
-            } else if (data.data?.result) {
-                answer = data.data.result;
-            } else {
-                answer = '抱歉，暂时无法获取回答，请稍后再试。';
-                addMessage('assistant', '⚠️ 响应格式不匹配，原始数据:', true);
-                console.log('原始响应数据:', data);
-            }
+            if (data.data?.outputs?.text) answer = data.data.outputs.text;
+            else if (data.outputs?.text) answer = data.outputs.text;
+            else if (data.answer) answer = data.answer;
+            else if (data.message) answer = data.message;
+            else answer = '抱歉，暂时无法获取回答，请稍后再试。';
 
             removeTyping();
             addMessage('assistant', answer);
         } catch (err) {
             console.error('调用Agent失败:', err);
             removeTyping();
-            
-            if (err.name === 'AbortError') {
-                addMessage('system', '⚠️ 请求已取消', true);
-            } else if (err.message.includes('401') || err.message.includes('403')) {
-                addMessage('system', '🔑 认证失败：API Key无效或过期', true);
-            } else if (err.message.includes('404')) {
-                addMessage('system', '🔍 工作流未找到：请检查Workflow ID是否正确', true);
-            } else if (err.message.includes('500')) {
-                addMessage('system', '⚙️ 服务器内部错误：请稍后重试', true);
-            } else if (err.message.includes('network') || err.message.includes('NetworkError')) {
-                addMessage('system', '🌐 网络连接失败：请检查网络状态', true);
-            } else {
-                addMessage('system', `❌ 错误: ${err.message.substring(0, 150)}`, true);
-            }
+            addMessage('assistant', '⚠️ 服务连接出现问题，请确认Dify服务与API Key有效性，或稍后重试。');
         } finally {
             isLoading = false;
-            hideLoading();
-            abortController = null;
-        }
-    }
-
-    // 取消请求功能
-    function cancelRequest() {
-        if (abortController && isLoading) {
-            abortController.abort();
-            addMessage('system', '⏹️ 请求已取消', true);
         }
     }
 
     // 事件绑定
-    sendBtn.addEventListener('click', () => {
-        if (isLoading) {
-            cancelRequest();
-        } else {
-            sendMessage();
-        }
-    });
-
+    sendBtn.addEventListener('click', () => sendMessage());
     questionInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !isLoading) {
-            e.preventDefault();
-            sendMessage();
-        }
+        if (e.key === 'Enter' && !isLoading) sendMessage();
     });
 
     // 示例问题快速填充
     document.querySelectorAll('.example-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-            if (isLoading) return;
             const q = chip.getAttribute('data-question');
             if (q) {
                 questionInput.value = q;
-                questionInput.focus();
-                // 不自动发送，让用户确认
+                sendMessage(q);
             }
         });
     });
@@ -823,39 +702,16 @@
     if (showBtn) {
         showBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (modal) {
-                modal.style.display = 'flex';
-            }
+            modal.style.display = 'flex';
         });
     }
-    
-    if (closeBtn && modal) {
+    if (closeBtn) {
         closeBtn.addEventListener('click', () => {
             modal.style.display = 'none';
         });
-        
-        window.addEventListener('click', (e) => {
-            if (e.target === modal) modal.style.display = 'none';
-        });
-        
-        // ESC键关闭弹窗
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.style.display === 'flex') {
-                modal.style.display = 'none';
-            }
-        });
     }
-
-    // 页面加载时添加欢迎消息
-    window.addEventListener('DOMContentLoaded', () => {
-        addMessage('assistant', '您好！我是医智助手，专门为您解答医药相关问题。请问有什么可以帮您的？');
-    });
-
-    // 离开页面时取消请求
-    window.addEventListener('beforeunload', () => {
-        if (abortController && isLoading) {
-            abortController.abort();
-        }
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
     });
 </script>
 </body>
