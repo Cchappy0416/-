@@ -37,7 +37,10 @@ module.exports = async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${APP_KEY}`
+        'Authorization': `Bearer ${APP_KEY}`,
+        // 添加 ngrok 需要的请求头，跳过浏览器警告
+        'ngrok-skip-browser-warning': 'true',
+        'User-Agent': 'Vercel-Serverless-Function'
       },
       body: JSON.stringify({
         inputs: {
