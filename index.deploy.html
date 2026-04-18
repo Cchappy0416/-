@@ -677,16 +677,16 @@
             if (!response.ok) {
                 let errorDetail = '未知错误';
                 try {
-                    const errorData = await response.json();
+                    const errorData = await response.clone().json();
                     errorDetail = errorData.message || errorData.error || JSON.stringify(errorData);
                 } catch (e) {
-                    const errorText = await response.text();
+                    const errorText = await response.clone().text();
                     errorDetail = errorText.substring(0, 200);
                 }
-                throw new Error(`API错误 ${response.status}: ${errorDetail}`);
+                throw new Error(`API 错误 ${response.status}: ${errorDetail}`);
             }
 
-            const data = await response.json();
+            const data = await response.clone().json();
             
             let answer = '';
             if (data.data?.outputs?.answer) {
